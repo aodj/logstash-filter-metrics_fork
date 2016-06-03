@@ -2,26 +2,17 @@
 require "logstash/filters/base"
 require "logstash/namespace"
 
-# This example filter will replace the contents of the default
-# message field with whatever you specify in the configuration.
-#
-# It is only intended to be used as an example.
-class LogStash::Filters::Example < LogStash::Filters::Base
+# A filter that accepts the grouped metrics from teh metrics filter, which reformats
+# the event and emits individual events formatted to be later inserted into InfluxDB
+class LogStash::Filters::MetricsFork < LogStash::Filters::Base
+  config_name "metrics_fork"
 
-  # Setting the config_name here is required. This is how you
-  # configure this filter from your Logstash config.
-  #
-  # filter {
-  #   example {
-  #     message => "My message..."
-  #   }
-  # }
-  #
-  config_name "example"
-
-  # Replace the message with this value.
-  config :message, :validate => :string, :default => "Hello World!"
-
+  # The field containing the metric to use as the value. This is usually either count or
+  # one of the rate metrics (f.ex: rate_1m)
+  config :metric, :validate => :string, :default => "count", :required => true
+  
+  # The prefix to match in the event for the metric fields 
+  config :prefix, :validate => :string
 
   public
   def register
@@ -31,18 +22,39 @@ class LogStash::Filters::Example < LogStash::Filters::Base
   public
   def filter(event)
 
-    if @message
-      # Replace the event message with our message as configured in the
-      # config file.
+    return unless filter?(event)
 
-      # using the event.set API
-      event.set("message", @message)
-      # correct debugging log statement for reference
-      # using the event.get API
-      @logger.debug? && @logger.debug("Message is now: #{event.get("message")}")
-    end
+    # extract the metrics and the value we're interested in. if @prefix=>"status_code" and
+    # @metric=>"count" this:
+    # {"status_code.200"=>{"count"=>24, ...}, "status_code.400"=>{"count"=>17, ...}}
+    # becomes:
+    # {"status_code.200"=>24, "status_code.400"=>17}
+    relevant_fields = {}
+    event.each { |key,value|
+      if key.start_with?(@prefix) 
+        metric_value = event[key][@metric]
+        relevant_fields[key] = metric_value
+      end
+    }
+    
+    # remove the original metrics from the event
+    relevant_fields.keys.each { |key|
+      event.remove(key)
+    }
+    
+    # clone the event, reformat the metric and emit the new event
+    relevant_fields.each { |key,value|
+      fork = event.clone
+      # this gives us a new event with {'status_code'=>24, 'metric'=>'200'} 
+      fork.set(@prefix, value)
+      metric_name = key[@prefix.length..-1]
+      
+      fork.set('metric', metric_name)
+      yield fork
+    }
 
-    # filter_matched should go in the last line of our successful code
-    filter_matched(event)
+    # cancel the triggering event
+    event.cancel
+    
   end # def filter
 end # class LogStash::Filters::Example
