@@ -57,4 +57,21 @@ describe LogStash::Filters::MetricsFork do
       insist { subject.get("metric") } == "us_code.200"
     end
   end
+  
+  describe "test with short prefix and override name" do
+    config <<-CONFIG
+      filter {
+        metrics_fork {
+          prefix => "stat"
+          field => "rate_1m"
+          name => "http_status_code"
+        }
+      }
+    CONFIG
+  
+    sample("status_code.200"=>{"count"=>24, "rate_1m"=>15}) do
+      insist { subject.get("http_status_code") } == 15
+      insist { subject.get("metric") } == "us_code.200"
+    end
+  end
 end
