@@ -48,7 +48,6 @@ describe LogStash::Filters::MetricsFork do
         metrics_fork {
           prefix => "stat"
           regex => "\\d+"
-          metric_field => "rate_1m"
           name => "http_status_code"
           drop_original_event => false
         }
