@@ -1,6 +1,6 @@
 # Logstash Plugin
 
-[[![Travis Build Status](https://travis-ci.org/aodj/logstash-filter-metrics_fork.svg?branch=master)](https://travis-ci.org/aodj/logstash-filter-metrics_fork)
+[![Travis Build Status](https://travis-ci.org/aodj/logstash-filter-metrics_fork.svg?branch=master)](https://travis-ci.org/aodj/logstash-filter-metrics_fork)
 
 This is a plugin for [Logstash](https://github.com/elastic/logstash).
 
