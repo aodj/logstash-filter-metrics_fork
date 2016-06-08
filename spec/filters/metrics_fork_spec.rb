@@ -17,10 +17,10 @@ describe LogStash::Filters::MetricsFork do
   
     sample("status_code.200" => {"count" => 24}, "status_code.400" => {"count" => 17}) do
       insist { subject.length } == 2
-      insist { subject[0].get("http_status_code") } == 24
-      insist { subject[0].get("metric") } == "200"
-      insist { subject[1].get("http_status_code") } == 17
-      insist { subject[1].get("metric") } == "400"
+      insist { subject[0]["http_status_code"] } == 24
+      insist { subject[0]["metric"] } == "200"
+      insist { subject[1]["http_status_code"] } == 17
+      insist { subject[1]["metric"] } == "400"
     end
   end
   
@@ -37,8 +37,8 @@ describe LogStash::Filters::MetricsFork do
     CONFIG
   
     sample("status_code.200" => {"count" => 24, "rate_1m" => 15}) do
-      insist { subject.get("http_status_code") } == 15
-      insist { subject.get("metric") } == "200"
+      insist { subject["http_status_code"] } == 15
+      insist { subject["metric"] } == "200"
     end
   end
 
@@ -71,7 +71,7 @@ describe LogStash::Filters::MetricsFork do
     CONFIG
   
     sample("status_code.200" => {"count" => 24, "rate_1m" => 15}) do
-      insist { subject.get("tags") }.include?("_regexpparsefailure")
+      insist { subject["tags"] }.include?("_regexpparsefailure")
 
     end
   end

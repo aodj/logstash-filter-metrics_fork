@@ -45,7 +45,7 @@ class LogStash::Filters::MetricsFork < LogStash::Filters::Base
     relevant_fields = {}
     event.to_hash.keys.each do |key|
       if key.start_with?(@prefix) 
-        metric_value = event.get("[%s][%s]" % [key, @metric_field])
+        metric_value = event[key][@metric_field]
         relevant_fields[key] = metric_value
       end
     end
@@ -61,7 +61,7 @@ class LogStash::Filters::MetricsFork < LogStash::Filters::Base
       fork = event.clone
       
       # this gives us a new event with {:@name => 24, 'metric' => '200'} 
-      fork.set(@name, value) # {:@name => 24}
+      fork[@name] = value # {:@name => 24}
       
       metric = key[regex]
       if metric.nil? or metric.empty?
@@ -70,7 +70,7 @@ class LogStash::Filters::MetricsFork < LogStash::Filters::Base
         return
       end
 
-      fork.set('metric', metric) # {'metric' => '200'}
+      fork['metric'] = metric # {'metric' => '200'}
       yield fork
     end
     
