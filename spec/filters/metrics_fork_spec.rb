@@ -58,4 +58,21 @@ describe LogStash::Filters::MetricsFork do
       insist { subject.length } == 2
     end
   end
+
+  describe "unescaped regex" do
+    config <<-CONFIG
+      filter {
+        metrics_fork {
+          prefix => "stat"
+          regex => ""
+          name => "http_status_code"
+        }
+      }
+    CONFIG
+  
+    sample("status_code.200" => {"count" => 24, "rate_1m" => 15}) do
+      insist { subject.get("tags") }.include?("_regexpparsefailure")
+
+    end
+  end
 end

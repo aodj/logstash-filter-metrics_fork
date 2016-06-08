@@ -25,6 +25,7 @@ class LogStash::Filters::MetricsFork < LogStash::Filters::Base
   # Flag indicating whether the original event should be dropped or not.
   config :drop_original_event, :validate => :boolean, :default => true
 
+  REGEXPARSEFAILURE = "_regexpparsefailure"
 
   public
   def register
@@ -61,10 +62,18 @@ class LogStash::Filters::MetricsFork < LogStash::Filters::Base
       
       # this gives us a new event with {:@name => 24, 'metric' => '200'} 
       fork.set(@name, value) # {:@name => 24}
-      fork.set('metric', key[regex]) # {'metric' => '200'}
+      
+      metric = key[regex]
+      if metric.nil? or metric.empty?
+        event.tag(REGEXPARSEFAILURE)
+        @logger.warn("No metric matched with the given regex: #{@regex}")
+        return
+      end
+
+      fork.set('metric', metric) # {'metric' => '200'}
       yield fork
     end
-
+    
     if @drop_original_event
       # cancel the triggering event
       event.cancel
