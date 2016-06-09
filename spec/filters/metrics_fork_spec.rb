@@ -9,7 +9,7 @@ describe LogStash::Filters::MetricsFork do
         metrics_fork {
           prefix => "status_code."
           regex => "\\d+"
-          metric_field => "count"
+          relevant_metric => "count"
           name => "http_status_code"
         }
       }
@@ -19,8 +19,10 @@ describe LogStash::Filters::MetricsFork do
       insist { subject.length } == 2
       insist { subject[0]["http_status_code"] } == 24
       insist { subject[0]["metric"] } == "200"
+      insist { subject[0]["tags"] }.nil?
       insist { subject[1]["http_status_code"] } == 17
       insist { subject[1]["metric"] } == "400"
+      insist { subject[1]["tags"] }.nil?
     end
   end
   
@@ -30,7 +32,7 @@ describe LogStash::Filters::MetricsFork do
         metrics_fork {
           prefix => "stat"
           regex => "\\d+"
-          metric_field => "rate_1m"
+          relevant_metric => "rate_1m"
           name => "http_status_code"
         }
       }
@@ -39,6 +41,7 @@ describe LogStash::Filters::MetricsFork do
     sample("status_code.200" => {"count" => 24, "rate_1m" => 15}) do
       insist { subject["http_status_code"] } == 15
       insist { subject["metric"] } == "200"
+      insist { subject["tags"] }.nil?
     end
   end
 
@@ -56,6 +59,8 @@ describe LogStash::Filters::MetricsFork do
   
     sample("status_code.200" => {"count" => 24, "rate_1m" => 15}) do
       insist { subject.length } == 2
+      insist { subject[0]["tags"] }.nil?
+      insist { subject[1]["tags"] }.nil?
     end
   end
 
@@ -75,4 +80,25 @@ describe LogStash::Filters::MetricsFork do
 
     end
   end
+
+  describe "named tags" do
+    config <<-CONFIG
+      filter {
+        metrics_fork {
+          prefix => "stat"
+          regex => "(?<=status_code\\.)[\\d]+"
+          name => "responses"
+          tag_key => "status_code"
+        }
+      }
+    CONFIG
+  
+    sample("status_code.200" => {"count" => 24, "rate_1m" => 15}) do
+      insist { subject["tags"] }.nil?
+      insist { subject["responses"] } == 24
+      insist { subject["status_code"] } == "200"
+
+    end
+  end
 end
+

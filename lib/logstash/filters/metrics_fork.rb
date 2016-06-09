@@ -12,13 +12,18 @@ class LogStash::Filters::MetricsFork < LogStash::Filters::Base
   config :prefix, :validate => :string, :required => true
 
   # A regular expression used to match the portion of the field name that contains the metric.
-  # If the field name is "status_code.200" then a regex of `/\d+/` would yield `200` as the metric
+  # If the field name is "status_code.200" then a regex of `\d+` would yield `200` as the metric name.
+  # This is useful for subsequently sending to the InfluxDB output plugin as a tag key
   config :regex, :validate => :string, :required => true
 
-  # The field containing the metric to use as the value. This is usually either count or
-  # one of the rate metrics (f.ex: rate_1m)
-  config :metric_field, :validate => :string, :default => "count", :required => true
+  # The field within the metric arrya containing the value we want to use as a metric.
+  # This is usually either count or one of the rate metrics (f.ex: rate_1m)
+  config :relevant_metric, :validate => :string, :default => "count", :required => true
   
+  # The name of the metric being recorded. Defaults to `metric`. This is useful when combined with
+  # the InfluxDB output to specify timeseries tags
+  config :tag_key, :validate => :string, :default => "metric", :required => false
+
   # The name to use for the metric.
   config :name, :validate => :string, :required => true
   
@@ -38,14 +43,14 @@ class LogStash::Filters::MetricsFork < LogStash::Filters::Base
     return unless filter?(event)
 
     # extract the metrics and the value we're interested in. if :@prefix=>"status_code" and
-    # :@metric_field=>"count" this:
+    # :@relevant_metric=>"count" this:
     # {"status_code.200" => {"count" => 24, ...}, "status_code.400" => {"count" => 17, ...}}
     # becomes:
     # {"status_code.200" => 24, "status_code.400" => 17}
     relevant_fields = {}
     event.to_hash.keys.each do |key|
       if key.start_with?(@prefix) 
-        metric_value = event[key][@metric_field]
+        metric_value = event[key][@relevant_metric]
         relevant_fields[key] = metric_value
       end
     end
@@ -60,7 +65,7 @@ class LogStash::Filters::MetricsFork < LogStash::Filters::Base
     relevant_fields.each do |key,value|
       fork = event.clone
       
-      # this gives us a new event with {:@name => 24, 'metric' => '200'} 
+      # this gives us a new event with {:@name => 24, :@tag_key => '200'} 
       fork[@name] = value # {:@name => 24}
       
       metric = key[regex]
@@ -70,7 +75,7 @@ class LogStash::Filters::MetricsFork < LogStash::Filters::Base
         return
       end
 
-      fork['metric'] = metric # {'metric' => '200'}
+      fork[@tag_key] = metric # {:@tag_key => '200'}
       yield fork
     end
     
